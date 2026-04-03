@@ -10,19 +10,34 @@ from espn_api.basketball import League
 
 load_dotenv()
 
-# Route all requests through residential proxy to bypass ESPN's cloud IP blocks
-_proxy_host = os.getenv("PROXY_HOST")
-_proxy_port = os.getenv("PROXY_PORT")
-_proxy_user = os.getenv("PROXY_USER")
-_proxy_pass = os.getenv("PROXY_PASS")
+# Build proxy config from env vars
+def _get_proxies():
+    host = os.getenv("PROXY_HOST")
+    port = os.getenv("PROXY_PORT")
+    user = os.getenv("PROXY_USER")
+    pwd  = os.getenv("PROXY_PASS")
+    if host and port and user and pwd:
+        url = f"http://{user}:{pwd}@{host}:{port}"
+        return {"http": url, "https": url}
+    return None
 
-if _proxy_host and _proxy_port:
-    _proxy_url = f"http://{_proxy_user}:{_proxy_pass}@{_proxy_host}:{_proxy_port}"
-    # Set environment variables so urllib3 (used by requests internally) picks them up
-    os.environ["HTTP_PROXY"] = _proxy_url
-    os.environ["HTTPS_PROXY"] = _proxy_url
-    os.environ["http_proxy"] = _proxy_url
-    os.environ["https_proxy"] = _proxy_url
+def _make_proxied_session():
+    """Return a requests.Session pre-configured with the proxy."""
+    session = requests.Session()
+    proxies = _get_proxies()
+    if proxies:
+        session.proxies.update(proxies)
+    return session
+
+# Patch requests.Session globally so espn-api picks up the proxy
+_proxies = _get_proxies()
+if _proxies:
+    _OriginalSession = requests.Session
+    class _PatchedSession(_OriginalSession):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.proxies.update(_proxies)
+    requests.Session = _PatchedSession
 
 
 def _get_owner(team) -> str:
