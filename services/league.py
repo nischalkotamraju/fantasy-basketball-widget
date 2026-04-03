@@ -32,20 +32,16 @@ def _make_proxied_session():
 # Patch requests.Session globally so espn-api picks up the proxy
 _proxies = _get_proxies()
 if _proxies:
-    # espn-api uses requests.get() directly, so patch that
+    import espn_api.requests.espn_requests as _espn_req
+
+    # Patch requests.get in the espn_api module directly
     _original_get = requests.get
     def _proxied_get(url, **kwargs):
         kwargs.setdefault("proxies", _proxies)
         return _original_get(url, **kwargs)
-    requests.get = _proxied_get
 
-    # Also patch requests.Session for any session-based calls
-    _OriginalSession = requests.Session
-    class _PatchedSession(_OriginalSession):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.proxies.update(_proxies)
-    requests.Session = _PatchedSession
+    requests.get = _proxied_get
+    _espn_req.requests.get = _proxied_get
 
 
 def _get_owner(team) -> str:
