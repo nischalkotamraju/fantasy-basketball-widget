@@ -123,7 +123,7 @@ def get_daily_advice(team_name=None):
             pool = entry.get("playerPoolEntry", {})
             player = pool.get("player", {})
             name = player.get("fullName", "")
-            status = pool.get("injuryStatus", "ACTIVE").upper()
+            status = player.get("injuryStatus", "ACTIVE").upper()
 
             if name in bench_names:
                 continue
